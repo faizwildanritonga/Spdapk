@@ -5,3 +5,6 @@
 [submodule "app/src/main/cpp/spd_dump"]
 	path = app/src/main/cpp/spd_dump
 	url = https://github.com/TomKing062/spreadtrum_flash.git
+[submodule "app/src/main/cpp/libxml2"]
+	path = app/src/main/cpp/libxml2
+	url = https://github.com/GNOME/libxml2.git
