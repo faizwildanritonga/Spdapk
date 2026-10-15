@@ -5,7 +5,9 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.hardware.usb.UsbConstants
 import android.hardware.usb.UsbDevice
+import android.hardware.usb.UsbEndpoint
 import android.hardware.usb.UsbManager
 import android.os.Build
 import android.os.IBinder
@@ -82,9 +84,42 @@ class UsbWatchService : Service() {
                         "ambil ${tOpenDone - tOpenStart}ms " +
                         "(total dari attach: ${tOpenDone - tCatch}ms)"
                     )
-                    // Fase 1 cuma sampai sini: fd siap dipakai.
-                    // Fase 2 nanti: oper connection.fileDescriptor ke native
-                    // (libusb_wrap_sys_device) lalu panggil spd_dump --usb-fd <fd>.
+
+                    // Langsung tes kirim HELLO (0x7E) pakai bulkTransfer bawaan
+                    // Android -- belum butuh libusb buat percobaan paling dasar ini.
+                    val iface = device.getInterface(0)
+                    val claimed = connection.claimInterface(iface, true)
+                    broadcastLog("claimInterface(0): $claimed")
+
+                    var epOut: UsbEndpoint? = null
+                    for (i in 0 until iface.endpointCount) {
+                        val ep = iface.getEndpoint(i)
+                        if (ep.type == UsbConstants.USB_ENDPOINT_XFER_BULK &&
+                            ep.direction == UsbConstants.USB_DIR_OUT
+                        ) {
+                            epOut = ep
+                            break
+                        }
+                    }
+
+                    if (claimed && epOut != null) {
+                        val tSendStart = SystemClock.elapsedRealtime()
+                        val hello = byteArrayOf(0x7E)
+                        val sent = connection.bulkTransfer(epOut, hello, hello.size, 1000)
+                        val tSendDone = SystemClock.elapsedRealtime()
+                        broadcastLog(
+                            "kirim HELLO 0x7E -> bulkTransfer hasil=$sent byte, " +
+                            "ambil ${tSendDone - tSendStart}ms " +
+                            "(total dari attach: ${tSendDone - tCatch}ms)"
+                        )
+                    } else {
+                        broadcastLog("endpoint bulk OUT tidak ketemu atau claimInterface gagal")
+                    }
+
+                    // Fase 1.5 ini cuma kirim mentah, belum baca balasan BROM
+                    // ataupun lanjut ke protokol FDL. Itu baru masuk Fase 2
+                    // (integrasi spd_dump/libusb beneran).
+                    connection.releaseInterface(iface)
                     connection.close()
                 } else {
                     broadcastLog(
