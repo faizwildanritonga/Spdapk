@@ -2,37 +2,28 @@ name: Build debug APK
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   workflow_dispatch: {}
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
-          distribution: temurin
-          java-version: '17'
+          java-version: "17"
+          distribution: "temurin"
+          cache: "gradle"
 
-      # ubuntu-latest sudah ada Android SDK bawaan di $ANDROID_HOME,
-      # jadi tidak perlu action setup-android lagi (sempat gagal install
-      # paket legacy "tools" yang sudah dihapus dari repo Google).
-      # Cukup accept license & pastikan platform/build-tools yang dipakai ada.
-      - name: Accept SDK licenses & install components
-        run: |
-          yes | sdkmanager --licenses || true
-          sdkmanager "platforms;android-34" "build-tools;34.0.0"
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '8.7'
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
 
       - name: Build debug APK
-        run: gradle assembleDebug --no-daemon
+        run: ./gradlew assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
