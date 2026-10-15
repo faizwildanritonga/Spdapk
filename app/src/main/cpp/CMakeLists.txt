@@ -1,9 +1,9 @@
 cmake_minimum_required(VERSION 3.22)
 project(spd_native)
 
-set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD 99)
+set(CMAKE_C_EXTENSIONS OFF)
 set(CMAKE_CXX_STANDARD 17)
-
 # --- libusb (ndk-build) ---
 set(LIBUSB_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libusb)
 set(LIBUSB_SO ${LIBUSB_DIR}/android/libs/${ANDROID_ABI}/libusb1.0.so)
