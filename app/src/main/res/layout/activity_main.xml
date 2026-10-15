@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#0D1117">
+
+    <ScrollView
+        android:id="@+id/scrollLog"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:padding="16dp"
+        android:layout_above="@id/btnStart">
+
+        <TextView
+            android:id="@+id/tvLog"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="monospace"
+            android:textColor="#39FF14"
+            android:textSize="12sp"
+            android:text="$ menunggu perintah start..." />
+    </ScrollView>
+
+    <!-- Tombol bulat start/stop -->
+    <Button
+        android:id="@+id/btnStart"
+        android:layout_width="72dp"
+        android:layout_height="72dp"
+        android:layout_centerHorizontal="true"
+        android:layout_alignParentBottom="true"
+        android:layout_marginBottom="24dp"
+        android:background="@drawable/bg_round_button"
+        android:text="▶"
+        android:textColor="#FFFFFF"
+        android:textSize="22sp" />
+
+</RelativeLayout>

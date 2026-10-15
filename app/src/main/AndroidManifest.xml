@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.uni.spdusbcheck">
+
+    <uses-feature android:name="android.hardware.usb.host" android:required="true" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <application
+        android:allowBackup="false"
+        android:label="SPD USB Check"
+        android:theme="@android:style/Theme.Material.Light.NoActionBar">
+
+        <!--
+          MainActivity juga didaftarkan sebagai target USB_DEVICE_ATTACHED.
+          Ini fallback cold-start: kalau app belum running sama sekali,
+          Android akan launch Activity ini otomatis + auto-grant permission
+          untuk device yang match device_filter.xml (tanpa popup).
+        -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" />
+            </intent-filter>
+            <meta-data
+                android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED"
+                android:resource="@xml/device_filter" />
+        </activity>
+
+        <!--
+          Service ini yang "warm" — begitu app dibuka & tombol start dipencet,
+          service ini hidup terus di foreground, listener USB-nya sudah siap
+          sebelum device dicolok. Ini jalur cepat yang sebenarnya dipakai.
+        -->
+        <service
+            android:name=".UsbWatchService"
+            android:exported="false"
+            android:foregroundServiceType="connectedDevice" />
+
+    </application>
+</manifest>
