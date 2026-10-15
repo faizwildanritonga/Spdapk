@@ -61,13 +61,13 @@ class UsbWatchService : Service() {
             broadcastLog(
                 "device attached, +${deltaFromStart}ms dari start listener"
             )
-            broadcastLog(
-                "VID: 0x%04X  PID: 0x%04X  (%s)".format(
-                    device.vendorId, device.productId, device.deviceName
-                )
-            )
 
             try {
+                broadcastLog(
+                    "VID: 0x%04X  PID: 0x%04X  (%s)".format(
+                        device.vendorId, device.productId, device.deviceName
+                    )
+                )
                 broadcastLog("cek permission...")
                 val hasPermission = usbManager.hasPermission(device)
                 broadcastLog("permission granted otomatis: $hasPermission")
@@ -96,7 +96,7 @@ class UsbWatchService : Service() {
                     // di log di atas.
                     broadcastLog("TIDAK auto-granted, cek apakah VID match device_filter.xml")
                 }
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 broadcastLog("EXCEPTION: ${e.javaClass.simpleName}: ${e.message}")
             }
         }
