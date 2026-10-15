@@ -23,8 +23,12 @@ jobs:
 
       - name: Install NDK + CMake
         run: |
-          yes | sdkmanager --licenses || true
-          sdkmanager "ndk;26.3.11579264" "cmake;3.22.1"
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          CMDLINE_TOOLS_BIN=$(dirname "$(find "$ANDROID_HOME/cmdline-tools" -name sdkmanager -type f | sort -V | tail -1)")
+          echo "Pakai sdkmanager dari: $CMDLINE_TOOLS_BIN"
+          echo "$CMDLINE_TOOLS_BIN" >> "$GITHUB_PATH"
+          yes | "$CMDLINE_TOOLS_BIN/sdkmanager" --licenses || true
+          "$CMDLINE_TOOLS_BIN/sdkmanager" "ndk;26.3.11579264" "cmake;3.22.1"
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
