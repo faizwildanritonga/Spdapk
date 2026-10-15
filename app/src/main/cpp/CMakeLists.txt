@@ -4,7 +4,7 @@ project(spd_native)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
 
-# --- libusb ---
+# --- libusb (ndk-build) ---
 set(LIBUSB_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libusb)
 set(LIBUSB_SO ${LIBUSB_DIR}/android/libs/${ANDROID_ABI}/libusb1.0.so)
 
@@ -27,15 +27,48 @@ add_library(usb-1.0 SHARED IMPORTED)
 set_target_properties(usb-1.0 PROPERTIES IMPORTED_LOCATION ${LIBUSB_SO})
 add_dependencies(usb-1.0 libusb_ndkbuild)
 
+# --- libxml2 ---
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+set(LIBXML2_WITH_PYTHON OFF CACHE BOOL "" FORCE)
+set(LIBXML2_WITH_TESTS OFF CACHE BOOL "" FORCE)
+set(LIBXML2_WITH_PROGRAMS OFF CACHE BOOL "" FORCE)
+set(LIBXML2_WITH_ZLIB OFF CACHE BOOL "" FORCE)
+set(LIBXML2_WITH_LZMA OFF CACHE BOOL "" FORCE)
+set(LIBXML2_WITH_ICONV OFF CACHE BOOL "" FORCE)
+set(LIBXML2_WITH_HTTP OFF CACHE BOOL "" FORCE)
+set(LIBXML2_WITH_FTP OFF CACHE BOOL "" FORCE)
+add_subdirectory(libxml2)
+
 # --- spd_dump (source TomKing062/spreadtrum_flash) ---
-file(GLOB SPD_DUMP_SOURCES
-    ${CMAKE_CURRENT_SOURCE_DIR}/spd_dump/*.c
+set(SPD_DUMP_DIR ${CMAKE_CURRENT_SOURCE_DIR}/spd_dump)
+
+execute_process(
+    COMMAND git rev-list HEAD --count
+    WORKING_DIRECTORY ${SPD_DUMP_DIR}
+    OUTPUT_VARIABLE SPD_GIT_VER
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    ERROR_QUIET
 )
+execute_process(
+    COMMAND git rev-parse HEAD
+    WORKING_DIRECTORY ${SPD_DUMP_DIR}
+    OUTPUT_VARIABLE SPD_GIT_SHA1
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    ERROR_QUIET
+)
+if(NOT SPD_GIT_VER)
+    set(SPD_GIT_VER "0")
+endif()
+if(NOT SPD_GIT_SHA1)
+    set(SPD_GIT_SHA1 "unknown")
+endif()
+file(WRITE ${SPD_DUMP_DIR}/GITVER.h
+    "#define GIT_VER \"${SPD_GIT_VER}\"\n#define GIT_SHA1 \"${SPD_GIT_SHA1}\"\n"
+)
+
+file(GLOB SPD_DUMP_SOURCES ${SPD_DUMP_DIR}/*.c)
 list(FILTER SPD_DUMP_SOURCES EXCLUDE REGEX ".*/(chsize|BMPlatform)\\.c$")
 
-# spd_dump expect header di <libusb-1.0/libusb.h> (ada subfolder "libusb-1.0"),
-# punya kita letaknya langsung di libusb/libusb/. Bikin symlink folder biar
-# path include-nya cocok tanpa modif source aslinya.
 file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/libusb_compat_include)
 file(CREATE_LINK ${LIBUSB_DIR}/libusb
     ${CMAKE_BINARY_DIR}/libusb_compat_include/libusb-1.0
@@ -48,19 +81,18 @@ target_compile_definitions(spd_dump_core PRIVATE
     USE_LIBUSB=1
 )
 target_include_directories(spd_dump_core PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/spd_dump
+    ${SPD_DUMP_DIR}
     ${CMAKE_BINARY_DIR}/libusb_compat_include
 )
 add_dependencies(spd_dump_core usb-1.0)
-target_link_libraries(spd_dump_core PUBLIC usb-1.0)
+target_link_libraries(spd_dump_core PUBLIC usb-1.0 LibXml2::LibXml2)
 
 # --- jembatan JNI ---
 add_library(spd_native SHARED jni_bridge.cpp)
-target_include_directories(spd_native PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/spd_dump
-)
+target_include_directories(spd_native PRIVATE ${SPD_DUMP_DIR})
 target_link_libraries(spd_native
     spd_dump_core
     usb-1.0
+    LibXml2::LibXml2
     log
 )
