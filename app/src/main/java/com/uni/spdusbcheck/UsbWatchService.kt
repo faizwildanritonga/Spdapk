@@ -5,9 +5,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.hardware.usb.UsbConstants
 import android.hardware.usb.UsbDevice
-import android.hardware.usb.UsbEndpoint
 import android.hardware.usb.UsbManager
 import android.os.Build
 import android.os.IBinder
@@ -85,42 +83,31 @@ class UsbWatchService : Service() {
                         "(total dari attach: ${tOpenDone - tCatch}ms)"
                     )
 
-                    // Langsung tes kirim HELLO (0x7E) pakai bulkTransfer bawaan
-                    // Android -- belum butuh libusb buat percobaan paling dasar ini.
-                    val iface = device.getInterface(0)
-                    val claimed = connection.claimInterface(iface, true)
-                    broadcastLog("claimInterface(0): $claimed")
-
-                    var epOut: UsbEndpoint? = null
-                    for (i in 0 until iface.endpointCount) {
-                        val ep = iface.getEndpoint(i)
-                        if (ep.type == UsbConstants.USB_ENDPOINT_XFER_BULK &&
-                            ep.direction == UsbConstants.USB_DIR_OUT
-                        ) {
-                            epOut = ep
-                            break
+                    // PENTING: jangan claimInterface/bulkTransfer manual di sini lagi --
+                    // begitu fd dioper ke libusb (via libusb_wrap_sys_device di native),
+                    // libusb yang akan claim interface-nya sendiri. Claim ganda dari
+                    // dua sisi (Android API + libusb) bisa bentrok/gagal.
+                    //
+                    // Jalankan spd_dump di thread terpisah -- ini operasi blocking
+                    // (nunggu HELLO/FDL dkk), tidak boleh di onReceive/main thread.
+                    val fd = connection.fileDescriptor
+                    broadcastLog("serahkan fd=$fd ke native spd_dump (libusb)...")
+                    Thread {
+                        val tNativeStart = SystemClock.elapsedRealtime()
+                        val ret = try {
+                            NativeBridge.runSpdDump(fd, arrayOf("--wait", "5"))
+                        } catch (e: Throwable) {
+                            broadcastLog("NATIVE EXCEPTION: ${e.javaClass.simpleName}: ${e.message}")
+                            -999
                         }
-                    }
-
-                    if (claimed && epOut != null) {
-                        val tSendStart = SystemClock.elapsedRealtime()
-                        val hello = byteArrayOf(0x7E)
-                        val sent = connection.bulkTransfer(epOut, hello, hello.size, 1000)
-                        val tSendDone = SystemClock.elapsedRealtime()
+                        val tNativeDone = SystemClock.elapsedRealtime()
                         broadcastLog(
-                            "kirim HELLO 0x7E -> bulkTransfer hasil=$sent byte, " +
-                            "ambil ${tSendDone - tSendStart}ms " +
-                            "(total dari attach: ${tSendDone - tCatch}ms)"
+                            "spd_dump_main selesai, ret=$ret, " +
+                            "durasi native ${tNativeDone - tNativeStart}ms " +
+                            "(lihat detail output di: adb logcat -s spd_native)"
                         )
-                    } else {
-                        broadcastLog("endpoint bulk OUT tidak ketemu atau claimInterface gagal")
-                    }
-
-                    // Fase 1.5 ini cuma kirim mentah, belum baca balasan BROM
-                    // ataupun lanjut ke protokol FDL. Itu baru masuk Fase 2
-                    // (integrasi spd_dump/libusb beneran).
-                    connection.releaseInterface(iface)
-                    connection.close()
+                        connection.close()
+                    }.start()
                 } else {
                     broadcastLog(
                         "openDevice GAGAL (null) setelah ${tOpenDone - tOpenStart}ms -- " +

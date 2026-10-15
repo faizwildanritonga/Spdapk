@@ -6,13 +6,31 @@ plugins {
 android {
     namespace = "com.uni.spdusbcheck"
     compileSdk = 34
+    ndkVersion = "26.3.11579264"
 
     defaultConfig {
         applicationId = "com.uni.spdusbcheck"
         minSdk = 26
         targetSdk = 34
         versionCode = 1
-        versionName = "0.1-phase1"
+        versionName = "0.2-phase2"
+
+        ndk {
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a")
+        }
+        externalNativeBuild {
+            cmake {
+                cppFlags += "-std=c++17"
+                arguments += "-DANDROID_STL=c++_shared"
+            }
+        }
+    }
+
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
+        }
     }
 
     buildTypes {
