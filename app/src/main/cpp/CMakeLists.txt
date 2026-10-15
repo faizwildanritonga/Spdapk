@@ -5,10 +5,6 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
 
 # --- libusb ---
-# Repo resmi libusb/libusb TIDAK punya CMakeLists.txt di root (PR buat itu
-# ditolak maintainer-nya). Dukungan Android resmi mereka lewat ndk-build
-# (android/jni/Android.mk), jadi kita panggil ndk-build sebagai sub-proses
-# dari CMake, hasilnya (libusb1.0.so) baru kita link sebagai imported lib.
 set(LIBUSB_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libusb)
 set(LIBUSB_SO ${LIBUSB_DIR}/android/libs/${ANDROID_ABI}/libusb1.0.so)
 
@@ -32,19 +28,28 @@ set_target_properties(usb-1.0 PROPERTIES IMPORTED_LOCATION ${LIBUSB_SO})
 add_dependencies(usb-1.0 libusb_ndkbuild)
 
 # --- spd_dump (source TomKing062/spreadtrum_flash) ---
-# main() aslinya di spd_dump.c diganti nama jadi spd_dump_main lewat
-# -Dmain=spd_dump_main, supaya bisa dipanggil dari jembatan JNI kita
-# tanpa bentrok dengan main() proses Android.
 file(GLOB SPD_DUMP_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/spd_dump/*.c
 )
 list(FILTER SPD_DUMP_SOURCES EXCLUDE REGEX ".*/(chsize|BMPlatform)\\.c$")
 
+# spd_dump expect header di <libusb-1.0/libusb.h> (ada subfolder "libusb-1.0"),
+# punya kita letaknya langsung di libusb/libusb/. Bikin symlink folder biar
+# path include-nya cocok tanpa modif source aslinya.
+file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/libusb_compat_include)
+file(CREATE_LINK ${LIBUSB_DIR}/libusb
+    ${CMAKE_BINARY_DIR}/libusb_compat_include/libusb-1.0
+    SYMBOLIC
+)
+
 add_library(spd_dump_core STATIC ${SPD_DUMP_SOURCES})
-target_compile_definitions(spd_dump_core PRIVATE main=spd_dump_main)
+target_compile_definitions(spd_dump_core PRIVATE
+    main=spd_dump_main
+    USE_LIBUSB=1
+)
 target_include_directories(spd_dump_core PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/spd_dump
-    ${LIBUSB_DIR}/libusb
+    ${CMAKE_BINARY_DIR}/libusb_compat_include
 )
 add_dependencies(spd_dump_core usb-1.0)
 target_link_libraries(spd_dump_core PUBLIC usb-1.0)
