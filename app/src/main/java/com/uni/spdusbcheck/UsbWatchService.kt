@@ -67,31 +67,37 @@ class UsbWatchService : Service() {
                 )
             )
 
-            val hasPermission = usbManager.hasPermission(device)
-            broadcastLog("permission granted otomatis: $hasPermission")
+            try {
+                broadcastLog("cek permission...")
+                val hasPermission = usbManager.hasPermission(device)
+                broadcastLog("permission granted otomatis: $hasPermission")
 
-            if (hasPermission) {
-                val tOpenStart = SystemClock.elapsedRealtime()
-                val connection = usbManager.openDevice(device)
-                val tOpenDone = SystemClock.elapsedRealtime()
-                if (connection != null) {
-                    broadcastLog(
-                        "openDevice OK, fd=${connection.fileDescriptor}, " +
-                        "ambil ${tOpenDone - tOpenStart}ms " +
-                        "(total dari attach: ${tOpenDone - tCatch}ms)"
-                    )
-                    // Fase 1 cuma sampai sini: fd siap dipakai.
-                    // Fase 2 nanti: oper connection.fileDescriptor ke native
-                    // (libusb_wrap_sys_device) lalu panggil spd_dump --usb-fd <fd>.
-                    connection.close()
+                if (hasPermission) {
+                    broadcastLog("panggil openDevice()...")
+                    val tOpenStart = SystemClock.elapsedRealtime()
+                    val connection = usbManager.openDevice(device)
+                    val tOpenDone = SystemClock.elapsedRealtime()
+                    if (connection != null) {
+                        broadcastLog(
+                            "openDevice OK, fd=${connection.fileDescriptor}, " +
+                            "ambil ${tOpenDone - tOpenStart}ms " +
+                            "(total dari attach: ${tOpenDone - tCatch}ms)"
+                        )
+                        // Fase 1 cuma sampai sini: fd siap dipakai.
+                        // Fase 2 nanti: oper connection.fileDescriptor ke native
+                        // (libusb_wrap_sys_device) lalu panggil spd_dump --usb-fd <fd>.
+                        connection.close()
+                    } else {
+                        broadcastLog("openDevice GAGAL (connection null)")
+                    }
                 } else {
-                    broadcastLog("openDevice GAGAL (connection null)")
+                    // Kalau ini kejadian, berarti device_filter.xml belum match
+                    // atau VID device ini beda dari 0x1782; cek lagi VID aktualnya
+                    // di log di atas.
+                    broadcastLog("TIDAK auto-granted, cek apakah VID match device_filter.xml")
                 }
-            } else {
-                // Kalau ini kejadian, berarti device_filter.xml belum match
-                // atau VID device ini beda dari 0x1782 -- cek lagi VID aktualnya
-                // di log di atas.
-                broadcastLog("TIDAK auto-granted -- cek apakah VID match device_filter.xml")
+            } catch (e: Exception) {
+                broadcastLog("EXCEPTION: ${e.javaClass.simpleName}: ${e.message}")
             }
         }
     }
