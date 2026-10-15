@@ -26,10 +26,18 @@ android {
         }
     }
 
-    externalNativeBuild {
+        externalNativeBuild {
         cmake {
             path = file("src/main/cpp/CMakeLists.txt")
             version = "3.22.1"
+        }
+    }
+
+    // libusb1.0.so hasil ndk-build ada di luar folder build CMake biasa,
+    // jadi perlu dikasih tau manual supaya ikut ke-pack ke APK.
+    sourceSets {
+        getByName("main") {
+            jniLibs.srcDirs("src/main/cpp/libusb/android/libs")
         }
     }
 
