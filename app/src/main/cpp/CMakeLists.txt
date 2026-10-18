@@ -4,7 +4,11 @@ project(spd_native)
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_EXTENSIONS OFF)
 set(CMAKE_CXX_STANDARD 17)
-# --- libusb (ndk-build) ---
+# C_EXTENSIONS OFF -> mode ISO C ketat, mematikan macro lama seperti
+# "unix" (=1) yang bentrok dengan nama variabel di common.c -- sama
+# seperti flag -std=c99 -pedantic di Makefile aslinya.
+
+# --- libusb (ndk-build, lihat catatan sebelumnya) ---
 set(LIBUSB_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libusb)
 set(LIBUSB_SO ${LIBUSB_DIR}/android/libs/${ANDROID_ABI}/libusb1.0.so)
 
@@ -28,6 +32,9 @@ set_target_properties(usb-1.0 PROPERTIES IMPORTED_LOCATION ${LIBUSB_SO})
 add_dependencies(usb-1.0 libusb_ndkbuild)
 
 # --- libxml2 ---
+# Beda dari libusb, libxml2 resmi punya CMakeLists.txt sendiri -- bisa
+# add_subdirectory() langsung. Matikan fitur yang nggak perlu/nambah
+# dependency ekstra (python, http/ftp, zlib, lzma, iconv, tools cli).
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 set(LIBXML2_WITH_PYTHON OFF CACHE BOOL "" FORCE)
 set(LIBXML2_WITH_TESTS OFF CACHE BOOL "" FORCE)
@@ -40,8 +47,10 @@ set(LIBXML2_WITH_FTP OFF CACHE BOOL "" FORCE)
 add_subdirectory(libxml2)
 
 # --- spd_dump (source TomKing062/spreadtrum_flash) ---
-set(SPD_DUMP_DIR ${CMAKE_CURRENT_SOURCE_DIR}/spd_dump)
 
+# GITVER.h biasanya di-generate Makefile aslinya dari info git. Kita generate
+# manual dari metadata git submodule-nya saat CMake configure.
+set(SPD_DUMP_DIR ${CMAKE_CURRENT_SOURCE_DIR}/spd_dump)
 execute_process(
     COMMAND git rev-list HEAD --count
     WORKING_DIRECTORY ${SPD_DUMP_DIR}
@@ -69,6 +78,8 @@ file(WRITE ${SPD_DUMP_DIR}/GITVER.h
 file(GLOB SPD_DUMP_SOURCES ${SPD_DUMP_DIR}/*.c)
 list(FILTER SPD_DUMP_SOURCES EXCLUDE REGEX ".*/(chsize|BMPlatform)\\.c$")
 
+# spd_dump expect header di <libusb-1.0/libusb.h>, punya kita letaknya
+# langsung di libusb/libusb/. Symlink folder biar path include-nya cocok.
 file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/libusb_compat_include)
 file(CREATE_LINK ${LIBUSB_DIR}/libusb
     ${CMAKE_BINARY_DIR}/libusb_compat_include/libusb-1.0
